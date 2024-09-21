@@ -38,7 +38,7 @@ class SaveImageWithMetaData(BaseNode):
                 }),
                 "save_prompt": ("BOOLEAN", {
                     "default": True,
-                    "tooltip": "If true, includes positive and negative prompts in the metadata."
+                    "tooltip": "If true, includes positive and negative prompts in the metadata. Set it to false if you don't want to share your prompt."
                 }),
             },
             "hidden": {

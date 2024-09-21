@@ -1,14 +1,14 @@
 [project]
-name = "comfyui-saveimagemetadata"
-description = "Custom ComfyUI node based on the Save Image node with extended AUTOMATIC1111-style metadata to saved images for compatibility with the Civitai website"
+name = "comfyui-imagemetadataextension"
+description = "Custom node for ComfyUI. It adds additional metadata for saved images, ensuring compatibility with the Civitai website."
 version = "1.0.0"
 license = { file = "LICENSE" }
 
 [project.urls]
-Repository = "https://github.com/edelvarden/ComfyUI-SaveImageMetaData"
+Repository = "https://github.com/edelvarden/ComfyUI-ImageMetadataExtension"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
 PublisherId = "edelvarden"
-DisplayName = "ComfyUI-SaveImageMetaData"
+DisplayName = "ComfyUI-ImageMetadataExtension"
 Icon = ""
