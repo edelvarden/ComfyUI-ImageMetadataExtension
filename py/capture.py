@@ -71,6 +71,26 @@ class Capture:
         return inputs
 
     @classmethod
+    def get_lora_strings_and_hashes(cls, inputs_before_sampler_node):
+        lora_names = inputs_before_sampler_node.get(MetaField.LORA_MODEL_NAME, [])
+        lora_weights = inputs_before_sampler_node.get(MetaField.LORA_STRENGTH_MODEL, [])
+        lora_hashes = inputs_before_sampler_node.get(MetaField.LORA_MODEL_HASH, [])
+
+        lora_strings = []
+        lora_hashes_string = []
+
+        for name, weight, hash in zip(lora_names, lora_weights, lora_hashes):
+            if name and weight and hash:
+                lora_name_clean = os.path.splitext(os.path.basename(name[1]))[0].replace(' ', '_')
+
+                # Use it for both the prompt and the hash
+                lora_strings.append(f"<lora:{lora_name_clean}:{weight[1]}>")
+                lora_hashes_string.append(f"{lora_name_clean}: {hash[1]}")
+
+        return lora_strings, ", ".join(lora_hashes_string)
+
+
+    @classmethod
     def gen_pnginfo_dict(cls, inputs_before_sampler_node, inputs_before_this_node, save_civitai_sampler=False, save_prompt=True):
         pnginfo_dict = {}
 
@@ -85,22 +105,15 @@ class Capture:
             positive_prompt = ""
             positive_prompt += update_pnginfo_dict(inputs_before_sampler_node, MetaField.POSITIVE_PROMPT, "Positive prompt")
 
+            # Get Lora strings and hashes
+            lora_strings, lora_hashes_string = cls.get_lora_strings_and_hashes(inputs_before_sampler_node)
+
             # Append Lora models to the positive prompt, which is required for the Civitai website to parse and apply Lora weights.
             # Format: <lora:Lora_Model_Name:weight_value>. Example: <lora:Lora_Name_00:0.6> <lora:Lora_Name_01:0.8>
-            lora_names = inputs_before_sampler_node.get(MetaField.LORA_MODEL_NAME, [])
-            lora_weights = inputs_before_sampler_node.get(MetaField.LORA_STRENGTH_MODEL, [])
-
-            lora_strings = [
-                f"<lora:{os.path.splitext(os.path.basename(name[1]))[0].replace(' ', '_')}:{weight[1]}>"
-                for name, weight in zip(lora_names, lora_weights)
-                if name and weight
-            ]
-
             if lora_strings:
                 positive_prompt += " " + " ".join(lora_strings)
 
             pnginfo_dict["Positive prompt"] = positive_prompt.strip()
-
             update_pnginfo_dict(inputs_before_sampler_node, MetaField.NEGATIVE_PROMPT, "Negative prompt")
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.STEPS, "Steps")
@@ -133,25 +146,18 @@ class Capture:
         update_pnginfo_dict(inputs_before_this_node, MetaField.VAE_HASH, "VAE hash")
 
         # Add Lora hashes, based on https://github.com/AUTOMATIC1111/stable-diffusion-webui/blob/82a973c04367123ae98bd9abdf80d9eda9b910e2/extensions-builtin/Lora/scripts/lora_script.py#L78
-        lora_names = inputs_before_sampler_node.get(MetaField.LORA_MODEL_NAME, [])
-        lora_hashes = inputs_before_sampler_node.get(MetaField.LORA_MODEL_HASH, [])
-
-        lora_hashes_string = ", ".join(f"{os.path.splitext(os.path.basename(name[1]))[0].replace(' ', '_')}: {hash[1]}" 
-                                        for name, hash in zip(lora_names, lora_hashes) if name and hash)
-
         if lora_hashes_string:
             pnginfo_dict["Lora hashes"] = f'"{lora_hashes_string}"'
 
         pnginfo_dict.update(cls.gen_loras(inputs_before_sampler_node))
         pnginfo_dict.update(cls.gen_embeddings(inputs_before_sampler_node))
 
-        hashes_for_civitai = cls.get_hashes_for_civitai(
-            inputs_before_sampler_node, inputs_before_this_node
-        )
+        hashes_for_civitai = cls.get_hashes_for_civitai(inputs_before_sampler_node, inputs_before_this_node)
         if len(hashes_for_civitai) > 0:
             pnginfo_dict["Hashes"] = json.dumps(hashes_for_civitai)
 
         return pnginfo_dict
+
 
 
     @classmethod
@@ -293,3 +299,4 @@ class Capture:
         if scheduler == "normal":
             return sampler
         return sampler + "_" + scheduler
+        
