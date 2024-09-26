@@ -84,7 +84,7 @@ class SaveImageWithMetaData(BaseNode):
         """
         Generates PNG metadata by merging extra metadata with base information.
         """
-        pnginfo_dict = self.gen_pnginfo(SAMPLER_SELECTION_METHOD[0], 0, False, save_prompt)
+        pnginfo_dict = self.gen_pnginfo(SAMPLER_SELECTION_METHOD[0], 0, True, save_prompt)
         pnginfo_dict.update({k: v.replace(",", "/") for k, v in extra_metadata.items() if k and v})
         return pnginfo_dict
 

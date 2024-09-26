@@ -91,7 +91,7 @@ class Capture:
 
 
     @classmethod
-    def gen_pnginfo_dict(cls, inputs_before_sampler_node, inputs_before_this_node, save_civitai_sampler=False, save_prompt=True):
+    def gen_pnginfo_dict(cls, inputs_before_sampler_node, inputs_before_this_node, save_civitai_sampler=True, save_prompt=True):
         pnginfo_dict = {}
 
         def update_pnginfo_dict(inputs, metafield, key):
