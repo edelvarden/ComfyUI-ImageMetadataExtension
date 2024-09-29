@@ -30,7 +30,7 @@ class SaveImageWithMetaData(BaseNode):
         return {
             "required": {
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
-                "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "The prefix for the file to save. This may include formatting information such as %date:yyyy-MM-dd% or %Empty Latent Image.width% to include values from nodes."})
+                "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "The prefix for the saved file. You can include formatting options like %date:yyyy-MM-dd% or %seed%, and combine them as needed, e.g., %date:hhmmss%_%seed%."})
             },
             "optional": {
                 "extra_metadata": ("EXTRA_METADATA", {
@@ -59,6 +59,7 @@ class SaveImageWithMetaData(BaseNode):
     def save_images(self, images, filename_prefix="ComfyUI", prompt=None, extra_pnginfo=None, extra_metadata={}, save_prompt=True):
         pnginfo_dict = self.generate_metadata(extra_metadata, save_prompt)
 
+        filename_prefix = self.format_filename(filename_prefix, pnginfo_dict)
         filename_prefix += self.prefix_append
         full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
         results = list()
@@ -129,49 +130,58 @@ class SaveImageWithMetaData(BaseNode):
 
     @classmethod
     def format_filename(cls, filename, pnginfo_dict):
-        date_table = cls.get_date_table()
-
-        def replace_segment(segment):
-            key, *parts = segment.replace("%", "").split(":")
-            if key == "seed":
-                return pnginfo_dict.get("Seed", "")
-            elif key == "width":
-                return pnginfo_dict.get("Size", "x").split("x")[0]
-            elif key == "height":
-                return pnginfo_dict.get("Size", "x").split("x")[1]
-            elif key == "pprompt":
-                prompt = pnginfo_dict.get("Positive prompt", "").replace("\n", " ")
-                return prompt[:int(parts[0])] if parts else prompt.strip()
-            elif key == "nprompt":
-                prompt = pnginfo_dict.get("Negative prompt", "").replace("\n", " ")
-                return prompt[:int(parts[0])] if parts else prompt.strip()
-            elif key == "model":
-                model = os.path.splitext(os.path.basename(pnginfo_dict.get("Model", "")))[0]
-                return model[:int(parts[0])] if parts else model
-            elif key == "date":
-                return cls.format_date(parts, date_table)
-            return ""
-
-        return re.sub(cls.pattern_format, lambda m: replace_segment(m.group(0)), filename)
-
-    @staticmethod
-    def get_date_table():
+        result = re.findall(cls.pattern_format, filename)
+        
         now = datetime.now()
-        return {
-            "yyyy": now.year,
-            "MM": now.month,
-            "dd": now.day,
-            "hh": now.hour,
-            "mm": now.minute,
-            "ss": now.second,
+        date_table = {
+            "yyyy": str(now.year),
+            "MM": str(now.month).zfill(2),
+            "dd": str(now.day).zfill(2),
+            "hh": str(now.hour).zfill(2),
+            "mm": str(now.minute).zfill(2),
+            "ss": str(now.second).zfill(2),
         }
 
-    @staticmethod
-    def format_date(parts, date_table):
-        date_format = parts[0] if parts else "yyyyMMddhhmmss"
-        for k, v in date_table.items():
-            date_format = date_format.replace(k, str(v).zfill(len(k)))
-        return date_format
+        for segment in result:
+            parts = segment.replace("%", "").split(":")
+            key = parts[0]
+
+            if key == "seed":
+                filename = filename.replace(segment, str(pnginfo_dict.get("Seed", "")))
+
+            elif key == "width":
+                width = pnginfo_dict.get("Size", "x").split("x")[0]
+                filename = filename.replace(segment, str(width))
+
+            elif key == "height":
+                height = pnginfo_dict.get("Size", "x").split("x")[1]
+                filename = filename.replace(segment, str(height))
+
+            elif key == "pprompt":
+                prompt = pnginfo_dict.get("Positive prompt", "").replace("\n", " ")
+                if len(parts) >= 2:
+                    prompt = prompt[:int(parts[1])]
+                filename = filename.replace(segment, prompt.strip())
+
+            elif key == "nprompt":
+                prompt = pnginfo_dict.get("Negative prompt", "").replace("\n", " ")
+                if len(parts) >= 2:
+                    prompt = prompt[:int(parts[1])]
+                filename = filename.replace(segment, prompt.strip())
+
+            elif key == "model":
+                model = os.path.splitext(os.path.basename(pnginfo_dict.get("Model", "")))[0]
+                if len(parts) >= 2:
+                    model = model[:int(parts[1])]
+                filename = filename.replace(segment, model)
+
+            elif key == "date":
+                date_format = parts[1] if len(parts) >= 2 else "yyyyMMddhhmmss"
+                for k, v in date_table.items():
+                    date_format = date_format.replace(k, v)
+                filename = filename.replace(segment, date_format)
+
+        return filename
 
 
 class CreateExtraMetaData(BaseNode):
