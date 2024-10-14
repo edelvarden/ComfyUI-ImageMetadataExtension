@@ -30,7 +30,14 @@ class SaveImageWithMetaData(BaseNode):
         return {
             "required": {
                 "images": ("IMAGE", {"tooltip": "The images to save."}),
-                "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "The prefix for the saved file. You can include formatting options like %date:yyyy-MM-dd% or %seed%, and combine them as needed, e.g., %date:hhmmss%_%seed%."})
+                "filename_prefix": ("STRING", {"default": "ComfyUI", "tooltip": "The prefix for the saved file. You can include formatting options like %date:yyyy-MM-dd% or %seed%, and combine them as needed, e.g., %date:hhmmss%_%seed%."}),
+                "subdirectory_name": ("STRING", {
+                    "default": "",
+                    "tooltip": (
+                        "Custom directory to save the images. Leave empty to use the default output "
+                        "directory. You can include formatting options like %date:yyyy-MM-dd%."
+                    )
+                })
             },
             "optional": {
                 "extra_metadata": ("EXTRA_METADATA", {
@@ -56,41 +63,65 @@ class SaveImageWithMetaData(BaseNode):
 
     pattern_format = re.compile(r"(%[^%]+%)")
 
-    def save_images(self, images, filename_prefix="ComfyUI", prompt=None, extra_pnginfo=None, extra_metadata={}, save_prompt=True):
+    def save_images(self, images, filename_prefix="ComfyUI", subdirectory_name="", prompt=None, extra_pnginfo=None, extra_metadata={}, save_prompt=True):
         pnginfo_dict = self.generate_metadata(extra_metadata, save_prompt)
 
-        filename_prefix = self.format_filename(filename_prefix, pnginfo_dict)
-        filename_prefix += self.prefix_append
-        full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0])
-        results = list()
-        for (batch_number, image) in enumerate(images):
-            i = 255. * image.cpu().numpy()
-            img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+        # Format the filename prefix
+        filename_prefix = self.format_filename(filename_prefix, pnginfo_dict) + self.prefix_append
+        
+        # Determine the output folder
+        if subdirectory_name:
+            subdirectory_name = self.format_filename(subdirectory_name, pnginfo_dict)
+            full_output_folder = os.path.join(self.output_dir, subdirectory_name)
+            filename = filename_prefix
+        else:
+            full_output_folder, filename, counter, subfolder, filename_prefix = folder_paths.get_save_image_path(
+                filename_prefix, self.output_dir, images[0].shape[1], images[0].shape[0]
+            )
 
+        # Ensure the output folder exists
+        os.makedirs(full_output_folder, exist_ok=True)
+
+        results = []
+        for batch_number, image in enumerate(images):
+            img_array = 255. * image.cpu().numpy()
+            img = Image.fromarray(np.clip(img_array, 0, 255).astype(np.uint8))
+
+            # Prepare metadata for the image
             metadata = self.prepare_pnginfo(pnginfo_dict, batch_number, len(images), prompt, extra_pnginfo) if not args.disable_metadata else None
 
             filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
-            file = f"{filename_with_batch_num}_{counter:05}_.png"
+            
+            # Ensure unique filenames
+            file = f"{filename_with_batch_num}_{batch_number:05}_.png"
+            counter = 1
+            while os.path.exists(os.path.join(full_output_folder, file)):
+                file = f"{filename_with_batch_num}_{batch_number:05}_{counter}_.png"
+                counter += 1
+            
+            # Save the image with metadata
             img.save(os.path.join(full_output_folder, file), pnginfo=metadata, compress_level=self.compress_level)
+            
             results.append({
                 "filename": file,
-                "subfolder": subfolder,
+                "subfolder": full_output_folder,
                 "type": self.type
             })
-            counter += 1
 
         return { "ui": { "images": results } }
 
     def generate_metadata(self, extra_metadata, save_prompt):
         """
-        Generates PNG metadata by merging extra metadata with base information.
+        Generates PNG metadata by merging extra metadata with the base metadata.
         """
         pnginfo_dict = self.gen_pnginfo(SAMPLER_SELECTION_METHOD[0], 0, True, save_prompt)
         pnginfo_dict.update({k: v.replace(",", "/") for k, v in extra_metadata.items() if k and v})
         return pnginfo_dict
 
-
     def prepare_pnginfo(self, pnginfo_dict, batch_number, total_images, prompt, extra_pnginfo):
+        """
+        Prepares PNG metadata with batch information, parameters, and optional prompt details.
+        """
         metadata = PngInfo()
         pnginfo_copy = pnginfo_dict.copy()
 
@@ -112,29 +143,34 @@ class SaveImageWithMetaData(BaseNode):
 
     @classmethod
     def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler, save_prompt):
-        # get all node inputs
+        # Retrieve all node inputs
         inputs = Capture.get_inputs()
 
-        # get sampler node before this node
+        # Trace the inputs leading up to this node
         trace_tree_from_this_node = Trace.trace(hook.current_save_image_node_id, hook.current_prompt)
         inputs_before_this_node = Trace.filter_inputs_by_trace_tree(inputs, trace_tree_from_this_node)
 
+        # Locate the sampler node
         sampler_node_id = Trace.find_sampler_node_id(trace_tree_from_this_node, sampler_selection_method, sampler_selection_node_id)
 
-        # get inputs before sampler node
+        # Trace inputs leading up to the sampler node
         trace_tree_from_sampler_node = Trace.trace(sampler_node_id, hook.current_prompt)
         inputs_before_sampler_node = Trace.filter_inputs_by_trace_tree(inputs, trace_tree_from_sampler_node)
 
-        # generate PNGInfo from inputs
+        # Generate metadata from inputs
         return Capture.gen_pnginfo_dict(inputs_before_sampler_node, inputs_before_this_node, save_civitai_sampler, save_prompt)
 
     @classmethod
     def format_filename(cls, filename, pnginfo_dict):
+        """
+        Replaces placeholders in the filename with actual values like date, seed, prompt, etc.
+        """
         result = re.findall(cls.pattern_format, filename)
         
         now = datetime.now()
         date_table = {
             "yyyy": str(now.year),
+            "yy": str(now.year)[-2:],  # Get the last two digits of the year
             "MM": str(now.month).zfill(2),
             "dd": str(now.day).zfill(2),
             "hh": str(now.hour).zfill(2),
@@ -204,6 +240,7 @@ class CreateExtraMetaData(BaseNode):
         }
 
     RETURN_TYPES = ("EXTRA_METADATA",)
+
     FUNCTION = "create_extra_metadata"
 
     def create_extra_metadata(
