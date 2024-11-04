@@ -91,7 +91,7 @@ class Capture:
 
 
     @classmethod
-    def gen_pnginfo_dict(cls, inputs_before_sampler_node, inputs_before_this_node, save_civitai_sampler=True, save_prompt=True):
+    def gen_pnginfo_dict(cls, inputs_before_sampler_node, inputs_before_this_node, save_civitai_sampler=True):
         pnginfo_dict = {}
 
         def update_pnginfo_dict(inputs, metafield, key):
@@ -100,21 +100,20 @@ class Capture:
                 pnginfo_dict[key] = x[0][1]
                 return pnginfo_dict[key]  # Return the value that was set
             return ""  # Return an empty string if no value was set
+        
+        positive_prompt = ""
+        positive_prompt += update_pnginfo_dict(inputs_before_sampler_node, MetaField.POSITIVE_PROMPT, "Positive prompt")
 
-        if save_prompt:
-            positive_prompt = ""
-            positive_prompt += update_pnginfo_dict(inputs_before_sampler_node, MetaField.POSITIVE_PROMPT, "Positive prompt")
+        # Get Lora strings and hashes
+        lora_strings, lora_hashes_string = cls.get_lora_strings_and_hashes(inputs_before_sampler_node)
 
-            # Get Lora strings and hashes
-            lora_strings, lora_hashes_string = cls.get_lora_strings_and_hashes(inputs_before_sampler_node)
+        # Append Lora models to the positive prompt, which is required for the Civitai website to parse and apply Lora weights.
+        # Format: <lora:Lora_Model_Name:weight_value>. Example: <lora:Lora_Name_00:0.6> <lora:Lora_Name_01:0.8>
+        if lora_strings:
+            positive_prompt += " " + " ".join(lora_strings)
 
-            # Append Lora models to the positive prompt, which is required for the Civitai website to parse and apply Lora weights.
-            # Format: <lora:Lora_Model_Name:weight_value>. Example: <lora:Lora_Name_00:0.6> <lora:Lora_Name_01:0.8>
-            if lora_strings:
-                positive_prompt += " " + " ".join(lora_strings)
-
-            pnginfo_dict["Positive prompt"] = positive_prompt.strip()
-            update_pnginfo_dict(inputs_before_sampler_node, MetaField.NEGATIVE_PROMPT, "Negative prompt")
+        pnginfo_dict["Positive prompt"] = positive_prompt.strip()
+        update_pnginfo_dict(inputs_before_sampler_node, MetaField.NEGATIVE_PROMPT, "Negative prompt")
 
         update_pnginfo_dict(inputs_before_sampler_node, MetaField.STEPS, "Steps")
 
