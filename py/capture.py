@@ -100,7 +100,7 @@ class Capture:
                 value = x[0][1]
                 
                 # Only add non-empty values for other fields
-                if value:
+                if value is not None and value != "":
                     pnginfo_dict[key] = value
                     return value  # Return the value that was set
             
