@@ -23,6 +23,7 @@ import piexif.helper
 # refer. https://github.com/comfyanonymous/ComfyUI/blob/38b7ac6e269e6ecc5bdd6fefdfb2fb1185b09c9d/nodes.py#L1411
 class SaveImageWithMetaData(BaseNode):
     SAVE_FILE_FORMATS = ["png", "jpg", "webp"]
+    METADATA_OPTIONS = ["full", "default", "none"]
     
     def __init__(self):
         self.output_dir = folder_paths.get_output_directory()
@@ -51,10 +52,9 @@ class SaveImageWithMetaData(BaseNode):
                 "extra_metadata": ("EXTRA_METADATA", {
                     "tooltip": "Additional metadata to be included with the saved image. This can contain key-value pairs for extra information."
                 }),
-            "include_extra_metadata": ("BOOLEAN", {
-                "default": True,
-                "tooltip": "If true, includes additional metadata, adding used models to the \"Resources\" field on the Civitai website."
-            }),
+                "save_metadata": (s.METADATA_OPTIONS, {
+                    "tooltip": "Metadata to include: Full - Default + Extra metadata, Default only, or None."
+                }),
             },
             "hidden": {
                 "prompt": "PROMPT", 
@@ -71,13 +71,14 @@ class SaveImageWithMetaData(BaseNode):
 
     pattern_format = re.compile(r"(%[^%]+%)")
 
-    def save_images(self, images, filename_prefix="ComfyUI", subdirectory_name="", prompt=None, extra_pnginfo=None, extra_metadata={}, file_format="png", lossless_webp=True, quality=100, include_extra_metadata=True):
-        pnginfo_dict = self.generate_metadata(extra_metadata) if include_extra_metadata else {}
+    def save_images(self, images, filename_prefix="ComfyUI", subdirectory_name="", prompt=None, extra_pnginfo=None, extra_metadata={}, file_format="png", lossless_webp=True, quality=100, save_metadata="full"):
+        # Set metadata based on selection
+        pnginfo_dict = self.generate_metadata(extra_metadata) if save_metadata == "full" else {}
 
-        # Format the filename prefix
+        # Format filename prefix
         filename_prefix = self.format_filename(filename_prefix, pnginfo_dict) + self.prefix_append
         
-        # Determine the output folder
+        # Determine output folder
         if subdirectory_name:
             subdirectory_name = self.format_filename(subdirectory_name, pnginfo_dict)
             full_output_folder = os.path.join(self.output_dir, subdirectory_name)
@@ -95,12 +96,12 @@ class SaveImageWithMetaData(BaseNode):
             img_array = 255. * image.cpu().numpy()
             img = Image.fromarray(np.clip(img_array, 0, 255).astype(np.uint8))
 
-            # Prepare metadata for the image
-            metadata = self.prepare_pnginfo(pnginfo_dict, batch_number, len(images), prompt, extra_pnginfo, include_extra_metadata) if not args.disable_metadata else None
+            # Prepare metadata for PNG format
+            metadata = self.prepare_pnginfo(pnginfo_dict, batch_number, len(images), prompt, extra_pnginfo, save_metadata)
 
             filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
             
-            # Ensure unique filenames
+            # Ensure unique filename
             file = f"{filename_with_batch_num}_{batch_number:05}_.{file_format}"
             counter = 1
             while os.path.exists(os.path.join(full_output_folder, file)):
@@ -147,10 +148,13 @@ class SaveImageWithMetaData(BaseNode):
         pnginfo_dict.update({k: v.replace(",", "/") for k, v in extra_metadata.items() if k and v})
         return pnginfo_dict
 
-    def prepare_pnginfo(self, pnginfo_dict, batch_number, total_images, prompt, extra_pnginfo, include_extra_metadata):
+    def prepare_pnginfo(self, pnginfo_dict, batch_number, total_images, prompt, extra_pnginfo, save_metadata):
         """
         Prepares PNG metadata with batch information, parameters, and optional prompt details.
         """
+        if save_metadata == "none":
+            return
+        
         metadata = PngInfo()
         pnginfo_copy = pnginfo_dict.copy()
 
@@ -158,7 +162,7 @@ class SaveImageWithMetaData(BaseNode):
             pnginfo_copy["Batch index"] = batch_number
             pnginfo_copy["Batch size"] = total_images
 
-        if include_extra_metadata:
+        if save_metadata == "full":
             parameters = Capture.gen_parameters_str(pnginfo_copy)
             metadata.add_text("parameters", parameters)
 
@@ -170,6 +174,7 @@ class SaveImageWithMetaData(BaseNode):
                 metadata.add_text(k, json.dumps(v))
 
         return metadata
+
 
     @classmethod
     def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler):
