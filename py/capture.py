@@ -97,9 +97,15 @@ class Capture:
         def update_pnginfo_dict(inputs, metafield, key):
             x = inputs.get(metafield, [])
             if x:
-                pnginfo_dict[key] = x[0][1]
-                return pnginfo_dict[key]  # Return the value that was set
-            return ""  # Return an empty string if no value was set
+                value = x[0][1]
+                
+                # Only add non-empty values for other fields
+                if value:
+                    pnginfo_dict[key] = value
+                    return value  # Return the value that was set
+            
+            return None  # Return None if no value was set or value is empty
+
         
         positive_prompt = ""
         positive_prompt += update_pnginfo_dict(inputs_before_sampler_node, MetaField.POSITIVE_PROMPT, "Positive prompt")

@@ -13,8 +13,11 @@ cache_model_hash = {}
 
 # Generalized hash calculation for different folder types
 def calc_hash_for_type(folder_type, model_name):
-    filename = folder_paths.get_full_path(folder_type, model_name)
-    return calc_hash(filename)
+    try:
+        filename = folder_paths.get_full_path(folder_type, model_name)
+        return calc_hash(filename)
+    except Exception as e:
+        return ""  # Return empty string if unable to calculate hash
 
 # Replacing calc_model_hash, calc_vae_hash, calc_lora_hash, and calc_unet_hash
 def calc_model_hash(model_name, input_data):
