@@ -22,7 +22,7 @@ import piexif.helper
 
 # refer. https://github.com/comfyanonymous/ComfyUI/blob/38b7ac6e269e6ecc5bdd6fefdfb2fb1185b09c9d/nodes.py#L1411
 class SaveImageWithMetaData(BaseNode):
-    SAVE_FILE_FORMATS = ["png", "jpg", "webp"]
+    OUTPUT_FORMATS = ["png", "png_with_json", "jpg", "jpg_with_json", "webp", "webp_with_json"]
     METADATA_OPTIONS = ["full", "default", "workflow_only", "none"]
     
     def __init__(self):
@@ -44,7 +44,7 @@ class SaveImageWithMetaData(BaseNode):
                         "directory. You can include formatting options like %date:yyyy-MM-dd%."
                     )
                 }),
-                "file_format": (s.SAVE_FILE_FORMATS, {
+                "output_format": (s.OUTPUT_FORMATS, {
                     "tooltip": "The format in which the images will be saved."
                 }),
             },
@@ -52,7 +52,7 @@ class SaveImageWithMetaData(BaseNode):
                 "extra_metadata": ("EXTRA_METADATA", {
                     "tooltip": "Additional metadata to be included with the saved image. This can contain key-value pairs for extra information."
                 }),
-            "save_metadata": (s.METADATA_OPTIONS, {
+            "metadata_scope": (s.METADATA_OPTIONS, {
                 "tooltip": "Choose the metadata to save: "
                         "\n'full' - default + extra metadata, "
                         "\n'default' - same as SaveImage node, "
@@ -75,13 +75,16 @@ class SaveImageWithMetaData(BaseNode):
 
     pattern_format = re.compile(r"(%[^%]+%)")
 
-    def save_images(self, images, filename_prefix="ComfyUI", subdirectory_name="", prompt=None, extra_pnginfo=None, extra_metadata={}, file_format="png", lossless_webp=True, quality=100, save_metadata="full"):
+    def save_images(self, images, filename_prefix="ComfyUI", subdirectory_name="", prompt=None, extra_pnginfo=None, extra_metadata={}, output_format="png", lossless_webp=True, quality=100, metadata_scope="full"):
+        # Parse file format and determine if JSON metadata should be saved
+        base_format, save_workflow_json = self.parse_output_format(output_format)
+        
         # Set metadata based on selection
-        pnginfo_dict = self.generate_metadata(extra_metadata) if save_metadata == "full" else {}
+        pnginfo_dict = self.generate_metadata(extra_metadata) if metadata_scope == "full" else {}
 
         # Format filename prefix
         filename_prefix = self.format_filename(filename_prefix, pnginfo_dict) + self.prefix_append
-        
+
         # Determine output folder
         if subdirectory_name:
             subdirectory_name = self.format_filename(subdirectory_name, pnginfo_dict)
@@ -96,44 +99,41 @@ class SaveImageWithMetaData(BaseNode):
         os.makedirs(full_output_folder, exist_ok=True)
 
         results = []
+
         for batch_number, image in enumerate(images):
             img_array = 255. * image.cpu().numpy()
             img = Image.fromarray(np.clip(img_array, 0, 255).astype(np.uint8))
 
             # Prepare metadata for PNG format
-            metadata = self.prepare_pnginfo(pnginfo_dict, batch_number, len(images), prompt, extra_pnginfo, save_metadata)
+            metadata = self.prepare_pnginfo(pnginfo_dict, batch_number, len(images), prompt, extra_pnginfo, metadata_scope)
 
             filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
-            
+
             # Ensure unique filename
-            file = f"{filename_with_batch_num}_{batch_number:05}_.{file_format}"
+            file = f"{filename_with_batch_num}_{batch_number:05}_.{base_format}"
             counter = 1
             while os.path.exists(os.path.join(full_output_folder, file)):
-                file = f"{filename_with_batch_num}_{batch_number:05}_{counter}_.{file_format}"
+                file = f"{filename_with_batch_num}_{batch_number:05}_{counter}_.{base_format}"
                 counter += 1
 
-            if file_format == "png":
-                # Save the image with metadata for PNG format
+            if base_format == "png":
+                # Save PNG format
                 img.save(os.path.join(full_output_folder, file), pnginfo=metadata, compress_level=self.compress_level)
             else:
-                # Save the image for other formats (JPEG, WEBP)
+                # Save other formats (JPEG, WEBP)
                 parameters = Capture.gen_parameters_str(pnginfo_dict)
-
                 img.save(
                     os.path.join(full_output_folder, file),
                     optimize=True,
                     quality=quality,
                     lossless=lossless_webp,
                 )
-                exif_bytes = piexif.dump(
-                    {
-                        "Exif": {
-                            piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(
-                                parameters, encoding="unicode"
-                            ),
-                        },
+                # Save EXIF data for JPEG/WEBP
+                exif_bytes = piexif.dump({
+                    "Exif": {
+                        piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(parameters, encoding="unicode")
                     }
-                )
+                })
                 piexif.insert(exif_bytes, os.path.join(full_output_folder, file))
 
             results.append({
@@ -142,7 +142,29 @@ class SaveImageWithMetaData(BaseNode):
                 "type": self.type
             })
 
-        return { "ui": { "images": results } }
+            # Conditionally save JSON metadata
+            if save_workflow_json:
+                self.save_json_metadata(extra_pnginfo["workflow"], os.path.join(full_output_folder, file))
+
+        return {"ui": {"images": results}}
+
+    
+    def parse_output_format(output_format):
+        """
+        Parse the file format to extract the base format and determine if JSON metadata should be saved.
+        """
+        save_workflow_json = "json" in output_format
+        base_format = output_format.split("_")[0] 
+        return base_format, save_workflow_json
+    
+    def save_json_metadata(metadata, file_path):
+        """
+        Saves metadata as a JSON file with the same name as the image.
+        """
+        json_file = f"{os.path.splitext(file_path)[0]}.json"
+        with open(json_file, "w", encoding="utf-8") as f:
+            json.dump(metadata, f)
+
 
     def generate_metadata(self, extra_metadata):
         """
@@ -152,11 +174,11 @@ class SaveImageWithMetaData(BaseNode):
         pnginfo_dict.update({k: v.replace(",", "/") for k, v in extra_metadata.items() if k and v})
         return pnginfo_dict
 
-    def prepare_pnginfo(self, pnginfo_dict, batch_number, total_images, prompt, extra_pnginfo, save_metadata):
+    def prepare_pnginfo(self, pnginfo_dict, batch_number, total_images, prompt, extra_pnginfo, metadata_scope):
         """
         Prepares PNG metadata with batch information, parameters, and optional prompt details.
         """
-        if save_metadata == "none":
+        if metadata_scope == "none":
             return
         
         metadata = PngInfo()
@@ -166,11 +188,11 @@ class SaveImageWithMetaData(BaseNode):
             pnginfo_copy["Batch index"] = batch_number
             pnginfo_copy["Batch size"] = total_images
 
-        if save_metadata == "full":
+        if metadata_scope == "full":
             parameters = Capture.gen_parameters_str(pnginfo_copy)
             metadata.add_text("parameters", parameters)
 
-        if prompt is not None and save_metadata != "workflow_only":
+        if prompt is not None and metadata_scope != "workflow_only":
             metadata.add_text("prompt", json.dumps(prompt))
 
         if extra_pnginfo and isinstance(extra_pnginfo, dict):
