@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-imagemetadataextension"
 description = "Custom node for ComfyUI. It adds additional metadata for saved images, ensuring compatibility with the Civitai website."
-version = "1.0.8"
+version = "1.0.9"
 license = { file = "LICENSE" }
 
 [project.urls]

@@ -149,7 +149,7 @@ class SaveImageWithMetaData(BaseNode):
         return {"ui": {"images": results}}
 
     
-    def parse_output_format(output_format):
+    def parse_output_format(self, output_format):
         """
         Parse the file format to extract the base format and determine if JSON metadata should be saved.
         """
@@ -157,7 +157,7 @@ class SaveImageWithMetaData(BaseNode):
         base_format = output_format.split("_")[0] 
         return base_format, save_workflow_json
     
-    def save_json_metadata(metadata, file_path):
+    def save_json_metadata(self, metadata, file_path):
         """
         Saves metadata as a JSON file with the same name as the image.
         """
