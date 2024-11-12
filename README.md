@@ -8,8 +8,12 @@ This is a fork of [nkchocoai/ComfyUI-SaveImageWithMetaData](https://github.com/n
 - Simplified the node by removing unnecessary fields for general use.
 - Included metadata for LoRa weights.
 - The `subdirectory_name` field allows you to specify a custom name or use mask values to create a subdirectory for saved images. For example, using the mask `%date:yyyy-MM%` ([formatting options](#formatting-options)) will create a directory named with the current year and month (e.g., `2024-10`), organizing your images by the date they were generated.
-- The `file_format` field allows you to specify the format for saving images. Supported formats include PNG, JPG, and WebP.
-- The `include_extra_metadata` option is set to `true` by default. When enabled, it embeds additional metadata into saved images, including model usage details, which automatically populate the "Resources" field on the Civitai website. When set to `false`, only default metadata is included.
+- The `output_format` field allows you to specify the format for saving images. Supported formats include PNG, JPG, and WebP.
+- The `metadata_scope` option includes the following levels:
+  - **`full`** – includes default metadata plus extra metadata.
+  - **`default`** – same as the SaveImage node.
+  - **`workflow_only`** – workflow metadata only.
+  - **`none`** – no metadata.
 
 ## Installation
 
