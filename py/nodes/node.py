@@ -23,7 +23,7 @@ import piexif.helper
 # refer. https://github.com/comfyanonymous/ComfyUI/blob/38b7ac6e269e6ecc5bdd6fefdfb2fb1185b09c9d/nodes.py#L1411
 class SaveImageWithMetaData(BaseNode):
     SAVE_FILE_FORMATS = ["png", "jpg", "webp"]
-    METADATA_OPTIONS = ["full", "default", "none"]
+    METADATA_OPTIONS = ["full", "default", "workflow_only", "none"]
     
     def __init__(self):
         self.output_dir = folder_paths.get_output_directory()
@@ -52,9 +52,13 @@ class SaveImageWithMetaData(BaseNode):
                 "extra_metadata": ("EXTRA_METADATA", {
                     "tooltip": "Additional metadata to be included with the saved image. This can contain key-value pairs for extra information."
                 }),
-                "save_metadata": (s.METADATA_OPTIONS, {
-                    "tooltip": "Metadata to include: Full - Default + Extra metadata, Default only, or None."
-                }),
+            "save_metadata": (s.METADATA_OPTIONS, {
+                "tooltip": "Choose the metadata to save: "
+                        "\n'full' - default + extra metadata, "
+                        "\n'default' - same as SaveImage node, "
+                        "\n'workflow_only' - workflow metadata only, "
+                        "\n'none' - no metadata."
+            }),
             },
             "hidden": {
                 "prompt": "PROMPT", 
@@ -166,7 +170,7 @@ class SaveImageWithMetaData(BaseNode):
             parameters = Capture.gen_parameters_str(pnginfo_copy)
             metadata.add_text("parameters", parameters)
 
-        if prompt is not None:
+        if prompt is not None and save_metadata != "workflow_only":
             metadata.add_text("prompt", json.dumps(prompt))
 
         if extra_pnginfo and isinstance(extra_pnginfo, dict):
