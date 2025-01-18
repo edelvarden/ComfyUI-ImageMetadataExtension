@@ -42,7 +42,7 @@ class SaveImageWithMetaData(BaseNode):
                     "tooltip": (
                         "Custom directory to save the images. Leave empty to use the default output "
                         "directory. You can include formatting options like %date:yyyy-MM-dd%."
-                    )
+                    ),
                 }),
                 "output_format": (s.OUTPUT_FORMATS, {
                     "tooltip": "The format in which the images will be saved."
@@ -52,16 +52,20 @@ class SaveImageWithMetaData(BaseNode):
                 "extra_metadata": ("EXTRA_METADATA", {
                     "tooltip": "Additional metadata to be included with the saved image. This can contain key-value pairs for extra information."
                 }),
-            "metadata_scope": (s.METADATA_OPTIONS, {
-                "tooltip": "Choose the metadata to save: "
-                        "\n'full' - default + extra metadata, "
-                        "\n'default' - same as SaveImage node, "
-                        "\n'workflow_only' - workflow metadata only, "
-                        "\n'none' - no metadata."
-            }),
+                "metadata_scope": (s.METADATA_OPTIONS, {
+                    "tooltip": "Choose the metadata to save: "
+                            "\n'full' - default + extra metadata, "
+                            "\n'default' - same as SaveImage node, "
+                            "\n'workflow_only' - workflow metadata only, "
+                            "\n'none' - no metadata."
+                }),
+                "include_batch_num": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Include batch numbers in the filenames."
+                }),
             },
             "hidden": {
-                "prompt": "PROMPT", 
+                "prompt": "PROMPT",
                 "extra_pnginfo": "EXTRA_PNGINFO"
             },
         }
@@ -74,8 +78,11 @@ class SaveImageWithMetaData(BaseNode):
     DESCRIPTION = "Saves the input images with metadata to your ComfyUI output directory."
 
     pattern_format = re.compile(r"(%[^%]+%)")
-
-    def save_images(self, images, filename_prefix="ComfyUI", subdirectory_name="", prompt=None, extra_pnginfo=None, extra_metadata={}, output_format="png", lossless_webp=True, quality=100, metadata_scope="full"):
+    
+    def save_images(self, images, filename_prefix="ComfyUI", subdirectory_name="", prompt=None,
+        extra_pnginfo=None, extra_metadata={}, output_format="png", lossless_webp=True,
+        quality=100, metadata_scope="full", include_batch_num=True):
+        
         # Parse file format and determine if JSON metadata should be saved
         base_format, save_workflow_json = self.parse_output_format(output_format)
         
@@ -107,15 +114,32 @@ class SaveImageWithMetaData(BaseNode):
             # Prepare metadata for PNG format
             metadata = self.prepare_pnginfo(pnginfo_dict, batch_number, len(images), prompt, extra_pnginfo, metadata_scope)
 
-            filename_with_batch_num = filename.replace("%batch_num%", str(batch_number))
+            # Add batch number if the parameter is set
+            if include_batch_num:
+                filename_with_batch_num = f"{filename}_{batch_number:05}"
+            else:
+                filename_with_batch_num = filename
 
-            # Ensure unique filename
-            file = f"{filename_with_batch_num}_{batch_number:05}_.{base_format}"
-            counter = 1
-            while os.path.exists(os.path.join(full_output_folder, file)):
-                file = f"{filename_with_batch_num}_{batch_number:05}_{counter}_.{base_format}"
-                counter += 1
+            # Regex pattern to extract counters from filenames like "filename_00001_1.png"
+            counter_pattern = re.compile(rf"{re.escape(filename_with_batch_num)}_(\d+)\.{base_format}")
 
+            file = f"{filename_with_batch_num}.{base_format}"
+
+            # Check if file exists and find the highest counter used
+            if os.path.exists(os.path.join(full_output_folder, file)):
+                counter = 1
+                # Scan for files with the same base name and find the highest counter
+                existing_files = os.listdir(full_output_folder)
+                max_counter = 0
+                for existing_file in existing_files:
+                    match = counter_pattern.match(existing_file)
+                    if match:
+                        max_counter = max(max_counter, int(match.group(1)))
+                counter = max_counter + 1  # Start the counter from the highest number + 1
+
+                file = f"{filename_with_batch_num}_{counter}.{base_format}"
+
+            # Save image
             if base_format == "png":
                 # Save PNG format
                 img.save(os.path.join(full_output_folder, file), pnginfo=metadata, compress_level=self.compress_level)
