@@ -22,7 +22,10 @@ import piexif.helper
 
 # refer. https://github.com/comfyanonymous/ComfyUI/blob/38b7ac6e269e6ecc5bdd6fefdfb2fb1185b09c9d/nodes.py#L1411
 class SaveImageWithMetaData(BaseNode):
-    OUTPUT_FORMATS = ["png", "png_with_json", "jpg", "jpg_with_json", "webp", "webp_with_json"]
+    OUTPUT_FORMATS = [
+        "png", "png_with_json", "jpg", "jpg_with_json", "webp", "webp_with_json"
+    ]
+    QUALITY_OPTIONS = ["max", "high", "medium", "low"]
     METADATA_OPTIONS = ["full", "default", "workflow_only", "none"]
     
     def __init__(self):
@@ -52,6 +55,14 @@ class SaveImageWithMetaData(BaseNode):
                 "extra_metadata": ("EXTRA_METADATA", {
                     "tooltip": "Additional metadata to be included with the saved image. This can contain key-value pairs for extra information."
                 }),
+                "quality": (s.QUALITY_OPTIONS, {
+                    "tooltip": "Quality levels:"
+                            "\n'max' / 'lossless WebP' - 100"
+                            "\n'high' - 80"
+                            "\n'medium' - 60"
+                            "\n'low' - 30 (lower quality, smaller file size)"
+                            "\n\nNote: PNG images ignore this setting. "
+                }),
                 "metadata_scope": (s.METADATA_OPTIONS, {
                     "tooltip": "Choose the metadata to save: "
                             "\n'full' - default + extra metadata, "
@@ -80,8 +91,9 @@ class SaveImageWithMetaData(BaseNode):
     pattern_format = re.compile(r"(%[^%]+%)")
     
     def save_images(self, images, filename_prefix="ComfyUI", subdirectory_name="", prompt=None,
-        extra_pnginfo=None, extra_metadata={}, output_format="png", lossless_webp=True,
-        quality=100, metadata_scope="full", include_batch_num=True):
+                    extra_pnginfo=None, extra_metadata={}, output_format="png", 
+                    quality=100, metadata_scope="full", 
+                    include_batch_num=True):
         
         # Parse file format and determine if JSON metadata should be saved
         base_format, save_workflow_json = self.parse_output_format(output_format)
@@ -111,10 +123,10 @@ class SaveImageWithMetaData(BaseNode):
             img_array = 255. * image.cpu().numpy()
             img = Image.fromarray(np.clip(img_array, 0, 255).astype(np.uint8))
 
-            # Prepare metadata for PNG format
+            # Prepare metadata for the image
             metadata = self.prepare_pnginfo(pnginfo_dict, batch_number, len(images), prompt, extra_pnginfo, metadata_scope)
 
-            # Add batch number if the parameter is set
+            # Add batch number if parameter is set
             if include_batch_num:
                 filename_with_batch_num = f"{filename}_{batch_number:05}"
             else:
@@ -139,8 +151,13 @@ class SaveImageWithMetaData(BaseNode):
 
                 file = f"{filename_with_batch_num}_{counter}.{base_format}"
 
-            # Save image
-            if base_format == "png":
+            # Handle quality for JPG and WebP presets
+            quality_value = self.get_quality_value(quality)
+
+            # Handle WebP format with the determined quality
+            if base_format == "webp":
+                img.save(os.path.join(full_output_folder, file), "WEBP", quality=quality_value)
+            elif base_format == "png":
                 # Save PNG format
                 img.save(os.path.join(full_output_folder, file), pnginfo=metadata, compress_level=self.compress_level)
             else:
@@ -149,10 +166,12 @@ class SaveImageWithMetaData(BaseNode):
                 img.save(
                     os.path.join(full_output_folder, file),
                     optimize=True,
-                    quality=quality,
-                    lossless=lossless_webp,
+                    quality=quality_value,  # Use numeric quality value
+                    lossless=False if base_format.startswith("webp") else None,  # Apply lossless only for WebP
                 )
-                # Save EXIF data for JPEG/WEBP
+
+            # Add EXIF metadata if necessary
+            if base_format in ["jpg", "jpg_with_json", "webp_with_json"]:
                 exif_bytes = piexif.dump({
                     "Exif": {
                         piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(parameters, encoding="unicode")
@@ -172,7 +191,21 @@ class SaveImageWithMetaData(BaseNode):
 
         return {"ui": {"images": results}}
 
-    
+    def get_quality_value(self, quality):
+        """
+        Maps the quality option to a numeric value for saving the image.
+        """
+        if quality == "max":
+            return 100
+        elif quality == "high":
+            return 80
+        elif quality == "medium":
+            return 60
+        elif quality == "low":
+            return 30
+        else:
+            return 80  # Default to high quality
+
     def parse_output_format(self, output_format):
         """
         Parse the file format to extract the base format and determine if JSON metadata should be saved.
@@ -180,6 +213,7 @@ class SaveImageWithMetaData(BaseNode):
         save_workflow_json = "json" in output_format
         base_format = output_format.split("_")[0] 
         return base_format, save_workflow_json
+
     
     def save_json_metadata(self, metadata, file_path):
         """
