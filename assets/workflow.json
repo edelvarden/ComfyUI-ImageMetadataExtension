@@ -1,18 +1,18 @@
 {
-  "last_node_id": 10,
-  "last_link_id": 13,
+  "last_node_id": 11,
+  "last_link_id": 14,
   "nodes": [
     {
       "id": 2,
       "type": "VAELoader",
-      "pos": {
-        "0": 27,
-        "1": 192
-      },
-      "size": {
-        "0": 315,
-        "1": 58
-      },
+      "pos": [
+        27,
+        192
+      ],
+      "size": [
+        315,
+        58
+      ],
       "flags": {},
       "order": 0,
       "mode": 0,
@@ -21,10 +21,10 @@
         {
           "name": "VAE",
           "type": "VAE",
+          "shape": 3,
           "links": [
             8
           ],
-          "shape": 3,
           "slot_index": 0
         }
       ],
@@ -36,92 +36,16 @@
       ]
     },
     {
-      "id": 7,
-      "type": "VAEDecode",
-      "pos": {
-        "0": 1235,
-        "1": 237
-      },
-      "size": {
-        "0": 210,
-        "1": 46
-      },
-      "flags": {},
-      "order": 8,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "link": 7
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 8
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            9
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEDecode"
-      }
-    },
-    {
-      "id": 8,
-      "type": "SaveImageWithMetaData",
-      "pos": {
-        "0": 1474,
-        "1": 237
-      },
-      "size": [
-        436.58834695134965,
-        419.4312571352517
-      ],
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 9
-        },
-        {
-          "name": "extra_metadata",
-          "type": "EXTRA_METADATA",
-          "link": null
-        }
-      ],
-      "outputs": [],
-      "properties": {
-        "Node name for S&R": "SaveImageWithMetaData"
-      },
-      "widgets_values": [
-        "ComfyUI",
-        true
-      ]
-    },
-    {
       "id": 4,
       "type": "CLIPTextEncode",
-      "pos": {
-        "0": 411,
-        "1": 524
-      },
-      "size": {
-        "0": 400,
-        "1": 200
-      },
+      "pos": [
+        411,
+        524
+      ],
+      "size": [
+        400,
+        200
+      ],
       "flags": {},
       "order": 5,
       "mode": 0,
@@ -136,10 +60,10 @@
         {
           "name": "CONDITIONING",
           "type": "CONDITIONING",
+          "shape": 3,
           "links": [
             5
           ],
-          "shape": 3,
           "slot_index": 0
         }
       ],
@@ -156,14 +80,14 @@
     {
       "id": 1,
       "type": "CheckpointLoaderSimple",
-      "pos": {
-        "0": 27,
-        "1": 50
-      },
-      "size": {
-        "0": 315,
-        "1": 98
-      },
+      "pos": [
+        27,
+        50
+      ],
+      "size": [
+        315,
+        98
+      ],
       "flags": {},
       "order": 1,
       "mode": 0,
@@ -172,27 +96,27 @@
         {
           "name": "MODEL",
           "type": "MODEL",
+          "shape": 3,
           "links": [
             10
           ],
-          "shape": 3,
           "slot_index": 0
         },
         {
           "name": "CLIP",
           "type": "CLIP",
+          "shape": 3,
           "links": [
             1,
             2
           ],
-          "shape": 3,
           "slot_index": 1
         },
         {
           "name": "VAE",
           "type": "VAE",
-          "links": null,
-          "shape": 3
+          "shape": 3,
+          "links": null
         }
       ],
       "properties": {
@@ -203,56 +127,16 @@
       ]
     },
     {
-      "id": 9,
-      "type": "LoraLoaderModelOnly",
-      "pos": {
-        "0": 371,
-        "1": 52
-      },
-      "size": {
-        "0": 315,
-        "1": 82
-      },
-      "flags": {},
-      "order": 3,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 10
-        }
-      ],
-      "outputs": [
-        {
-          "name": "MODEL",
-          "type": "MODEL",
-          "links": [
-            12
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "LoraLoaderModelOnly"
-      },
-      "widgets_values": [
-        "XL\\Styles\\RELSM_v1.safetensors",
-        0.6
-      ]
-    },
-    {
       "id": 10,
       "type": "LoraLoaderModelOnly",
-      "pos": {
-        "0": 703,
-        "1": 51
-      },
-      "size": {
-        "0": 315,
-        "1": 82
-      },
+      "pos": [
+        703,
+        51
+      ],
+      "size": [
+        315,
+        82
+      ],
       "flags": {},
       "order": 6,
       "mode": 0,
@@ -267,10 +151,10 @@
         {
           "name": "MODEL",
           "type": "MODEL",
+          "shape": 3,
           "links": [
             13
           ],
-          "shape": 3,
           "slot_index": 0
         }
       ],
@@ -285,14 +169,14 @@
     {
       "id": 6,
       "type": "EmptyLatentImage",
-      "pos": {
-        "0": 886,
-        "1": 552
-      },
-      "size": {
-        "0": 315,
-        "1": 106
-      },
+      "pos": [
+        886,
+        552
+      ],
+      "size": [
+        315,
+        106
+      ],
       "flags": {},
       "order": 2,
       "mode": 0,
@@ -301,10 +185,10 @@
         {
           "name": "LATENT",
           "type": "LATENT",
+          "shape": 3,
           "links": [
             6
           ],
-          "shape": 3,
           "slot_index": 0
         }
       ],
@@ -318,16 +202,58 @@
       ]
     },
     {
+      "id": 3,
+      "type": "CLIPTextEncode",
+      "pos": [
+        409,
+        281
+      ],
+      "size": [
+        400,
+        200
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "shape": 3,
+          "links": [
+            4
+          ],
+          "slot_index": 0
+        }
+      ],
+      "title": "Positive",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "flat color, lineart, monochrome, greyscale, fantasy, character focus, sketch, character design, concept, (detailed:1.2),\nsolo, knight, helm, full armor, plate armor,"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
       "id": 5,
       "type": "KSampler",
-      "pos": {
-        "0": 888,
-        "1": 230
-      },
-      "size": {
-        "0": 315,
-        "1": 262
-      },
+      "pos": [
+        888,
+        230
+      ],
+      "size": [
+        315,
+        262
+      ],
       "flags": {},
       "order": 7,
       "mode": 0,
@@ -357,10 +283,10 @@
         {
           "name": "LATENT",
           "type": "LATENT",
+          "shape": 3,
           "links": [
             7
           ],
-          "shape": 3,
           "slot_index": 0
         }
       ],
@@ -370,54 +296,136 @@
       "widgets_values": [
         774031281056999,
         "randomize",
-        20,
-        7,
+        25,
+        5,
         "ddim",
         "normal",
         1
       ]
     },
     {
-      "id": 3,
-      "type": "CLIPTextEncode",
-      "pos": {
-        "0": 409,
-        "1": 281
-      },
-      "size": {
-        "0": 400,
-        "1": 200
-      },
+      "id": 9,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        371,
+        52
+      ],
+      "size": [
+        315,
+        82
+      ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
-          "name": "clip",
-          "type": "CLIP",
-          "link": 1
+          "name": "model",
+          "type": "MODEL",
+          "link": 10
         }
       ],
       "outputs": [
         {
-          "name": "CONDITIONING",
-          "type": "CONDITIONING",
-          "links": [
-            4
-          ],
+          "name": "MODEL",
+          "type": "MODEL",
           "shape": 3,
+          "links": [
+            12
+          ],
           "slot_index": 0
         }
       ],
-      "title": "Positive",
       "properties": {
-        "Node name for S&R": "CLIPTextEncode"
+        "Node name for S&R": "LoraLoaderModelOnly"
       },
       "widgets_values": [
-        "flat color, lineart, monochrome, greyscale, fantasy, character focus, sketch, character design, concept, (detailed:1.2),\nsolo, knight, helm, full armor, plate armor,"
+        "XL\\Styles\\RELSM_v1.safetensors",
+        0.6
+      ]
+    },
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        1235,
+        237
       ],
-      "color": "#232",
-      "bgcolor": "#353"
+      "size": [
+        210,
+        46
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "shape": 3,
+          "links": [
+            14
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 11,
+      "type": "SaveImageWithMetaData",
+      "pos": [
+        1460.097900390625,
+        234.6584014892578
+      ],
+      "size": [
+        453.5672302246094,
+        489.9000244140625
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 14
+        },
+        {
+          "name": "extra_metadata",
+          "type": "EXTRA_METADATA",
+          "shape": 7,
+          "link": null
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImageWithMetaData"
+      },
+      "widgets_values": [
+        "_%date:yyyy-MM-dd-hhmmss%",
+        "%date:yyyy-MM-dd%",
+        "png",
+        "max",
+        "full",
+        true
+      ],
+      "color": "#282a2f",
+      "bgcolor": "#37393e"
     }
   ],
   "links": [
@@ -478,14 +486,6 @@
       "VAE"
     ],
     [
-      9,
-      7,
-      0,
-      8,
-      0,
-      "IMAGE"
-    ],
-    [
       10,
       1,
       0,
@@ -508,17 +508,29 @@
       5,
       0,
       "MODEL"
+    ],
+    [
+      14,
+      7,
+      0,
+      11,
+      0,
+      "IMAGE"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7513148009015777,
+      "scale": 0.814027493868992,
       "offset": [
-        70.3303448218277,
-        233.98335179564089
+        -23.13658233091404,
+        103.64152414692992
       ]
+    },
+    "node_versions": {
+      "comfy-core": "0.3.14",
+      "ComfyUI-ImageMetadataExtension": "8d6703727b72363c5176b417ba459bcafd89d923"
     }
   },
   "version": 0.4
