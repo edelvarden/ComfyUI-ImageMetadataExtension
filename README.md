@@ -10,11 +10,18 @@ This is a fork of [nkchocoai/ComfyUI-SaveImageWithMetaData](https://github.com/n
 - Simplified the node by removing unnecessary fields for general use.
 - Included metadata for LoRa weights.
 - The `subdirectory_name` field allows you to specify a custom name or use mask values to create a subdirectory for saved images. For example, using the mask `%date:yyyy-MM%` ([formatting options](#formatting-options)) will create a directory named with the current year and month (e.g., `2024-10`), organizing your images by the date they were generated.
-- The `output_format` specifies how images are saved. Supported formats are:
-  - `png`, `jpg`, `webp` – saves the image in the specified format.
-  - `png_with_json`, `jpg_with_json`, `webp_with_json` – saves the image in the chosen format and writes metadata to a JSON file with the same name.
-- The `metadata_scope` option includes the following levels:
-  - **`full`** – includes default metadata plus extra metadata.
+- The `output_format` defines the saved image format:
+  - `png`, `jpg`, `webp` – saves in the specified format.
+  - `png_with_json`, `jpg_with_json`, `webp_with_json` – saves in the chosen format and writes workflow metadata to a JSON file with the same name.
+- The `quality` option has the following levels:
+  - **`max` / `lossless WebP`** – 100%
+  - **`high`** – 80%
+  - **`medium`** – 60%
+  - **`low`** – 30%
+
+  *(Lower quality, smaller file size. PNG images ignore this setting.)*
+- The `metadata_scope` option controls metadata inclusion:
+  - **`full`** – default metadata + extra metadata.
   - **`default`** – same as the SaveImage node.
   - **`workflow_only`** – workflow metadata only.
   - **`none`** – no metadata.
