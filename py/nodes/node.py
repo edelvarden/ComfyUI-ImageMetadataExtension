@@ -123,16 +123,6 @@ class SaveImageWithMetaData(BaseNode):
         results = list()
         os.makedirs(full_output_folder, exist_ok=True)
 
-        # Prepare batch metadata once
-        batch_metadata = {
-            "prompt": prompt,
-            "extra_metadata": extra_metadata,
-            "image_count": len(images),
-            "output_format": output_format,
-            "quality": quality,
-            "metadata_scope": metadata_scope
-        }
-
         for batch_number, image in enumerate(images):
             i = 255. * image.cpu().numpy()
             img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
@@ -172,7 +162,7 @@ class SaveImageWithMetaData(BaseNode):
         if save_workflow_json:
             batch_json_file = os.path.join(full_output_folder, f"{filename_prefix}.json")
             with open(batch_json_file, "w", encoding="utf-8") as f:
-                json.dump(batch_metadata, f)
+                json.dump(extra_pnginfo["workflow"], f)
 
         return {"ui": {"images": results}}
 
