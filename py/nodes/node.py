@@ -159,12 +159,14 @@ class SaveImageWithMetaData(BaseNode):
             results.append({"filename": file, "subfolder": full_output_folder, "type": self.type})
 
         # Save the JSON metadata for the whole batch once
-        if save_workflow_json and images:
-            last_batch_number = len(images) - 1
-            json_filename = f"{filename}_{last_batch_number:05}.json" if include_batch_num else f"{filename}.json"
-            batch_json_file = os.path.join(full_output_folder, json_filename)
-            with open(batch_json_file, "w", encoding="utf-8") as f:
-                json.dump(extra_pnginfo["workflow"], f)
+        if save_workflow_json and images is not None:
+            images_length = len(images)
+            if images_length > 0:
+                last_batch_number = images_length - 1
+                json_filename = f"{filename}_{last_batch_number:05}.json" if include_batch_num else f"{filename}.json"
+                batch_json_file = os.path.join(full_output_folder, json_filename)
+                with open(batch_json_file, "w", encoding="utf-8") as f:
+                    json.dump(extra_pnginfo["workflow"], f)
 
         return {"ui": {"images": results}}
 
@@ -200,7 +202,8 @@ class SaveImageWithMetaData(BaseNode):
         pnginfo_copy = pnginfo_dict.copy()
 
         if total_images > 1:
-            pnginfo_copy.update({"Batch index": batch_number, "Batch size": total_images})
+            pnginfo_copy["Batch index"] = batch_number
+            pnginfo_copy["Batch size"] = total_images
 
         if metadata_scope == "full":
             parameters = Capture.gen_parameters_str(pnginfo_copy)
@@ -209,9 +212,10 @@ class SaveImageWithMetaData(BaseNode):
         if prompt is not None and metadata_scope != "workflow_only":
             metadata.add_text("prompt", json.dumps(prompt))
 
-        if extra_pnginfo:
+        if extra_pnginfo and isinstance(extra_pnginfo, dict):
             for k, v in extra_pnginfo.items():
-                metadata.add_text(k, json.dumps(v) if not isinstance(v, str) else v)
+                value_to_add = json.dumps(v) if not isinstance(v, str) else v
+                metadata.add_text(k, value_to_add)
 
         return metadata
 
