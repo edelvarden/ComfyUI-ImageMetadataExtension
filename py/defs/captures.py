@@ -111,4 +111,8 @@ CAPTURE_FIELD_LIST = {
     "CFGGuider": {
         MetaField.CFG: {"field_name": "cfg"},
     },
+    "SamplerCustom": {
+        MetaField.CFG: {"field_name": "cfg"},
+        MetaField.SEED: {"field_name": "noise_seed"},
+    },
 }
