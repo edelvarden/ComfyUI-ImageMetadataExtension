@@ -108,4 +108,7 @@ CAPTURE_FIELD_LIST = {
     "KSamplerSelect": {
         MetaField.SAMPLER_NAME: {"field_name": "sampler_name"},
     },
+    "CFGGuider": {
+        MetaField.CFG: {"field_name": "cfg"},
+    },
 }
