@@ -1,5 +1,6 @@
 import os
 import folder_paths
+import re
 from ..utils.hash import calc_hash
 from ..utils.embedding import get_embedding_file_path
 from comfy.sd1_clip import escape_important, token_weights, unescape_important
@@ -48,13 +49,33 @@ def get_scaled_height(scaled_by, input_data):
     return round(samples.shape[2] * scaled_by * SCALING_FACTOR)
 
 
-def extract_embedding_names(text, input_data):
-    embedding_names, _ = _extract_embedding_names(text, input_data)
-    return [os.path.basename(embedding_name) for embedding_name in embedding_names]
+embedding_pattern = re.compile(r"embedding:\(?([^\s),]+)\)?")
+
+def _extract_embedding_names_from_text(text):
+    embedding_identifier = "embedding:"
+
+    # Check if 'embedding:' exists in the text
+    if embedding_identifier not in text:
+        return []
+    
+    # Extract matches
+    embedding_names = [match.group(1) for match in embedding_pattern.finditer(text)]
+
+    return embedding_names
+
+def extract_embedding_names(text, clip):
+    return _extract_embedding_names_from_text(text)
 
 def extract_embedding_hashes(text, input_data):
     embedding_names, clip = _extract_embedding_names(text, input_data)
-    embedding_hashes = [calc_hash(get_embedding_file_path(name, clip)) for name in embedding_names]
+
+    if not clip:
+        return []
+
+    embedding_hashes = [
+        calc_hash(get_embedding_file_path(name, clip)) if get_embedding_file_path(name, clip) else ""
+        for name in embedding_names
+    ]
     return embedding_hashes
 
 # Helper function to get clip from the tokenizer
@@ -67,23 +88,23 @@ def get_clip_from_tokenizer(tokenizer):
 
 # Extract embedding names from text
 def _extract_embedding_names(text, input_data):
-    clip_ = input_data[0]["clip"][0]
+    clip_ = input_data[0].get("clip", [None])[0]
     clip = get_clip_from_tokenizer(clip_.tokenizer) if clip_ else None
-    embedding_identifier = clip.embedding_identifier if clip and hasattr(clip, "embedding_identifier") else "embedding:"
 
-    # Ensure text is a string
-    if not isinstance(text, str):
-        text = "".join(str(item) if item else "" for item in text)
-    
+    if not clip or not hasattr(clip, "embedding_directory"):
+        return [], None
+
+    # Extract embedding names
+    embedding_names = _extract_embedding_names_from_text(text)
+
+    # Escape and tokenize if necessary
     text = escape_important(text)
     parsed_weights = token_weights(text, 1.0)
 
-    # Tokenize and extract embedding names
-    embedding_names = [
-        word[len(embedding_identifier):].strip("\n")
-        for weighted_segment, _ in parsed_weights
-        for word in unescape_important(weighted_segment).replace("\n", " ").split(" ")
-        if word.startswith(embedding_identifier) and clip and clip.embedding_directory
+    # Add matches from tokenized and escaped text
+    embedding_names += [
+        match.group(1) for segment, _ in parsed_weights
+        for match in re.finditer(embedding_pattern, unescape_important(segment))
     ]
 
     return embedding_names, clip
