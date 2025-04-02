@@ -245,63 +245,51 @@ class Capture:
             - `ipndm` and `karras` will return `ipndm_karras`
 
         Reference: https://github.com/civitai/civitai/blob/main/src/server/common/constants.ts
-        
-        Last update: https://github.com/civitai/civitai/blob/a2e6d267eefe6f44811a640c570739bcb078e4a5/src/server/common/constants.ts#L138-L165
         """
 
-        def sampler_with_karras_exponential(sampler, scheduler):
-            match scheduler:
-                case "karras":
-                    sampler += " Karras"
-                case "exponential":
-                    sampler += " Exponential"
-            return sampler
-        
-        def sampler_with_karras(sampler, scheduler):
-            if scheduler == "karras":
-                return sampler + " Karras"
-            return sampler
+        # Sampler map: https://github.com/civitai/civitai/blob/fe76d9a4406d0c7b6f91f7640c50f0a8fa1b9f35/src/server/common/constants.ts#L699
+        sampler_dict = {
+            'euler': 'Euler',
+            'euler_ancestral': 'Euler a',
+            'heun': 'Heun',
+            'dpm_2': 'DPM2',
+            'dpm_2_ancestral': 'DPM2 a',
+            'lms': 'LMS',
+            'dpm_fast': 'DPM fast',
+            'dpm_adaptive': 'DPM adaptive',
+            'dpmpp_2s_ancestral': 'DPM++ 2S a',
+            
+            'dpmpp_sde': 'DPM++ SDE',
+            'dpmpp_sde_gpu': 'DPM++ SDE',
+            'dpmpp_2m': 'DPM++ 2M',
+            'dpmpp_2m_sde': 'DPM++ 2M SDE',
+            'dpmpp_2m_sde_gpu': 'DPM++ 2M SDE',
+            
+            'ddim': 'DDIM',
+            'plms': 'PLMS',
+            'uni_pc': 'UniPC',
+            'uni_pc_bh2': 'UniPC',
+            'lcm': 'LCM'
+        }
 
+        # Get the sampler and scheduler values
         if len(sampler_names) > 0:
             sampler = sampler_names[0][1]
         if len(schedulers) > 0:
             scheduler = schedulers[0][1]
 
-        match sampler:
-            case "euler" | "euler_cfg_pp":
-                return "Euler"
-            case "euler_ancestral" | "euler_ancestral_cfg_pp":
-                return "Euler a"
-            case "heun" | "heunpp2":
-                return "Huen"
-            case "dpm_2":
-                return sampler_with_karras("DPM2", scheduler)
-            case "dpm_2_ancestral":
-                return sampler_with_karras("DPM2 a", scheduler)
-            case "lms":
-                return sampler_with_karras("LMS", scheduler)
-            case "dpm_fast":
-                return "DPM fast"
-            case "dpm_adaptive":
-                return "DPM adaptive"
-            case "dpmpp_2s_ancestral":
-                return sampler_with_karras("DPM++ 2S a", scheduler)
-            case "dpmpp_sde" | "dpmpp_sde_gpu":
-                return sampler_with_karras("DPM++ SDE", scheduler)
-            case "dpmpp_2m":
-                return sampler_with_karras("DPM++ 2M", scheduler)
-            case "dpmpp_2m_sde" | "dpmpp_2m_sde_gpu":
-                return sampler_with_karras("DPM++ 2M SDE", scheduler)
-            case "dpmpp_3m_sde" | "dpmpp_3m_sde_gpu":
-                return sampler_with_karras_exponential("DPM++ 3M SDE", scheduler)
-            case "lcm":
-                return "LCM"
-            case "ddim":
-                return "DDIM"
-            case "uni_pc" | "uni_pc_bh2":
-                return "UniPC"
-            
-        if scheduler == "normal":
-            return sampler
-        return sampler + "_" + scheduler
-        
+        def get_scheduler_name(sampler_name, scheduler):
+            if scheduler == "karras":
+                return f"{sampler_name} Karras"
+            elif scheduler == "exponential":
+                return f"{sampler_name} Exponential"
+            elif scheduler == "normal":
+                return sampler_name
+            else:
+                return f"{sampler_name}_{scheduler}"
+
+        if sampler in sampler_dict:
+            return get_scheduler_name(sampler_dict[sampler], scheduler)
+
+        # If no match in the dictionary, return the sampler name with scheduler appended
+        return get_scheduler_name(sampler, scheduler)
