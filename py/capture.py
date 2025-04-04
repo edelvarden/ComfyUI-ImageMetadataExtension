@@ -25,50 +25,64 @@ class Capture:
             input_data = get_input_data(
                 node_inputs, obj_class, node_id, outputs, DynamicPrompt(prompt), extra_data
             )
+
+            # Process field data mappings for the captured inputs
             for node_class, metas in CAPTURE_FIELD_LIST.items():
-                if class_type == node_class:
-                    for meta, field_data in metas.items():
-                        validate = field_data.get("validate")
-                        if validate is not None and not validate(
-                            node_id, obj, prompt, extra_data, outputs, input_data
-                        ):
-                            continue
+                if class_type != node_class:
+                    continue
+                
+                for meta, field_data in metas.items():
+                    # Skip invalidated nodes
+                    if field_data.get("validate") and not field_data["validate"](
+                        node_id, obj, prompt, extra_data, outputs, input_data
+                    ):
+                        continue
 
-                        if meta not in inputs:
-                            inputs[meta] = []
+                    # Initialize list for meta if not exists
+                    if meta not in inputs:
+                        inputs[meta] = []
 
-                        value = field_data.get("value")
-                        if value is not None:
-                            inputs[meta].append((node_id, value))
-                            continue
-
+                    # Get field value or selector
+                    value = field_data.get("value")
+                    if value is not None:
+                        inputs[meta].append((node_id, value))
+                    else:
                         selector = field_data.get("selector")
-                        if selector is not None:
-                            v = selector(
-                                node_id, obj, prompt, extra_data, outputs, input_data
-                            )
-                            if isinstance(v, list):
-                                for x in v:
-                                    inputs[meta].append((node_id, x))
-                            elif v is not None:
-                                inputs[meta].append((node_id, v))
-                            continue
+                        if selector:
+                            v = selector(node_id, obj, prompt, extra_data, outputs, input_data)
+                            cls._append_value(inputs, meta, node_id, v)
 
+                        # Fetch and process value from field_name
                         field_name = field_data["field_name"]
                         value = input_data[0].get(field_name)
                         if value is not None:
                             format_func = field_data.get("format")
-                            v = value
-                            if isinstance(value, list) and len(value) > 0:
-                                v = value[0]
-                            if format_func is not None:
-                                v = format_func(v, input_data)
-                            if isinstance(v, list):
-                                for x in v:
-                                    inputs[meta].append((node_id, x))
-                            else:
-                                inputs[meta].append((node_id, v))
+                            v = cls._apply_formatting(value, input_data, format_func)
+                            cls._append_value(inputs, meta, node_id, v)
+
         return inputs
+
+    @staticmethod
+    def _apply_formatting(value, input_data, format_func):
+        """Apply formatting to a value using the given format function."""
+        if isinstance(value, list) and len(value) > 0:
+            value = value[0]
+        if format_func:
+            value = format_func(value, input_data)
+        return value
+
+    @staticmethod
+    def _append_value(inputs, meta, node_id, value):
+        """Append processed value to the inputs list."""
+        if isinstance(value, list):
+            for x in value:
+                inputs[meta].append((node_id, x))
+        elif value is not None:
+            inputs[meta].append((node_id, value))
+
+    @staticmethod
+    def sanitize_name(name):
+        return os.path.splitext(os.path.basename(name))[0].replace(' ', '_').replace(':', '_')
 
     @classmethod
     def get_lora_strings_and_hashes(cls, inputs_before_sampler_node):
@@ -77,18 +91,20 @@ class Capture:
         lora_hashes = inputs_before_sampler_node.get(MetaField.LORA_MODEL_HASH, [])
 
         lora_strings = []
-        lora_hashes_string = []
+        lora_hashes_list = []
 
-        for name, weight, hash in zip(lora_names, lora_weights, lora_hashes):
-            if name and weight and hash:
-                lora_name_clean = os.path.splitext(os.path.basename(name[1]))[0].replace(' ', '_')
+        for name, weight, hash_val in zip(lora_names, lora_weights, lora_hashes):
+            if not (name and weight and hash_val):
+                continue
 
-                # Use it for both the prompt and the hash
-                lora_strings.append(f"<lora:{lora_name_clean}:{weight[1]}>")
-                lora_hashes_string.append(f"{lora_name_clean}: {hash[1]}")
+            clean_name = cls.sanitize_name(name[1])
+            
+            # LoRA strings for prompt and "Hashes" list
+            lora_strings.append(f"<lora:{clean_name}:{weight[1]}>")
+            lora_hashes_list.append(f"{clean_name}: {hash_val[1]}")
 
-        return lora_strings, ", ".join(lora_hashes_string)
-
+        lora_hashes_string = ", ".join(lora_hashes_list)
+        return lora_strings, lora_hashes_string
 
     @classmethod
     def gen_pnginfo_dict(cls, inputs_before_sampler_node, inputs_before_this_node, save_civitai_sampler=True):
@@ -188,23 +204,27 @@ class Capture:
 
     @classmethod
     def gen_parameters_str(cls, pnginfo_dict):
-        result = pnginfo_dict.get("Positive prompt", "") + "\n"
+        def clean_value(value):
+            if value is None:
+                return ""
+            value = str(value).strip()
+            return value.replace("\n", " ")
 
-        negative_prompt = pnginfo_dict.get("Negative prompt", "")
+        cleaned_dict = {k: clean_value(v) for k, v in pnginfo_dict.items()}
+
+        result = [cleaned_dict.get("Positive prompt", "")]
+        negative_prompt = cleaned_dict.get("Negative prompt")
         if negative_prompt:
-            result += "Negative prompt: " + negative_prompt + "\n"
+            result.append(f"Negative prompt: {negative_prompt}")
 
-        s_list = []
-        pnginfo_dict_without_prompt = {
-            k: v
-            for k, v in pnginfo_dict.items()
-            if k not in {"Positive prompt", "Negative prompt"}
-        }
-        for k, v in pnginfo_dict_without_prompt.items():
-            s = str(v).strip().replace("\n", " ")
-            s_list.append(f"{k}: {s}")
+        s_list = [
+            f"{k}: {v}"
+            for k, v in cleaned_dict.items() 
+            if k not in {"Positive prompt", "Negative prompt"} and v not in {None, ""}
+        ]
 
-        return result + ", ".join(s_list)
+        result.append(", ".join(s_list))
+        return "\n".join(result)
 
     @classmethod
     def get_hashes_for_civitai(cls, inputs_before_sampler_node, inputs_before_this_node):
