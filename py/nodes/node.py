@@ -15,7 +15,6 @@ from .base import BaseNode
 from ..capture import Capture
 from .. import hook
 from ..trace import Trace
-from ..defs.combo import SAMPLER_SELECTION_METHOD
 
 import piexif
 import piexif.helper
@@ -184,7 +183,7 @@ class SaveImageWithMetaData(BaseNode):
         """
         Merging extra metadata with the base metadata.
         """
-        pnginfo_dict = self.gen_pnginfo(SAMPLER_SELECTION_METHOD[0], 0, True)
+        pnginfo_dict = self.gen_pnginfo()
         pnginfo_dict.update({k: v.replace(",", "/") for k, v in extra_metadata.items() if k and v})
         return pnginfo_dict
 
@@ -217,16 +216,16 @@ class SaveImageWithMetaData(BaseNode):
         return metadata
 
     @classmethod
-    def gen_pnginfo(cls, sampler_selection_method, sampler_selection_node_id, save_civitai_sampler):
+    def gen_pnginfo(cls):
         inputs = Capture.get_inputs()
         trace_tree_from_this_node = Trace.trace(hook.current_save_image_node_id, hook.current_prompt)
         inputs_before_this_node = Trace.filter_inputs_by_trace_tree(inputs, trace_tree_from_this_node)
 
-        sampler_node_id = Trace.find_sampler_node_id(trace_tree_from_this_node, sampler_selection_method, sampler_selection_node_id)
+        sampler_node_id = Trace.find_sampler_node_id(trace_tree_from_this_node)
         trace_tree_from_sampler_node = Trace.trace(sampler_node_id, hook.current_prompt)
         inputs_before_sampler_node = Trace.filter_inputs_by_trace_tree(inputs, trace_tree_from_sampler_node)
 
-        return Capture.gen_pnginfo_dict(inputs_before_sampler_node, inputs_before_this_node, save_civitai_sampler)
+        return Capture.gen_pnginfo_dict(inputs_before_sampler_node, inputs_before_this_node)
 
     @classmethod
     def format_filename(cls, filename, pnginfo_dict):

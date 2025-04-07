@@ -1,59 +1,69 @@
-from collections import deque
-
+from collections import deque, defaultdict
 from .defs.samplers import SAMPLERS
-from .defs.combo import SAMPLER_SELECTION_METHOD
-
 
 class Trace:
     @classmethod
     def trace(cls, start_node_id, prompt):
-        class_type = prompt[start_node_id]["class_type"]
-        Q = deque()
-        Q.append((start_node_id, 0))
+        node = prompt.get(start_node_id)
+        class_type = node["class_type"] if node else None
+        Q = deque([(start_node_id, 0)])
+        visited = {start_node_id}
         trace_tree = {start_node_id: (0, class_type)}
-        while len(Q) > 0:
+
+        while Q:
             current_node_id, distance = Q.popleft()
-            input_fields = prompt[current_node_id]["inputs"]
+            node = prompt.get(current_node_id)
+            if not node:
+                continue
+
+            input_fields = node.get("inputs", {})
             for value in input_fields.values():
-                if isinstance(value, list):
+                if isinstance(value, list) and value:
                     nid = value[0]
-                    class_type = prompt[nid]["class_type"]
-                    trace_tree[nid] = (distance + 1, class_type)
-                    Q.append((nid, distance + 1))
+                    if nid not in visited:
+                        node = prompt.get(nid)
+                        if node:
+                            class_type = node["class_type"]
+                            trace_tree[nid] = (distance + 1, class_type)
+                            Q.append((nid, distance + 1))
+                            visited.add(nid)
+
         return trace_tree
 
     @classmethod
-    def find_sampler_node_id(cls, trace_tree, sampler_selection_method, node_id):
-        if sampler_selection_method == SAMPLER_SELECTION_METHOD[2]:
-            node_id = str(node_id)
-            _, class_type = trace_tree.get(node_id, (-1, None))
-            if class_type in SAMPLERS.keys():
+    def find_node_by_class_types(cls, trace_tree, class_type_set, node_id=None):
+        if node_id:
+            node = trace_tree.get(str(node_id))
+            if node and node[1] in class_type_set:
                 return node_id
-            return -1
+        else:
+            for nid, (_, class_type) in trace_tree.items():
+                if class_type in class_type_set:
+                    return nid
+        return None
 
-        sorted_by_distance_trace_tree = sorted(
-            [(k, v[0], v[1]) for k, v in trace_tree.items()],
-            key=lambda x: x[1],
-            reverse=(sampler_selection_method == SAMPLER_SELECTION_METHOD[0]),
+    @classmethod
+    def find_sampler_node_id(cls, trace_tree):
+        sampler = cls.find_node_by_class_types(
+            trace_tree,
+            set(SAMPLERS.keys()),
         )
-        for nid, _, class_type in sorted_by_distance_trace_tree:
-            if class_type in SAMPLERS.keys():
-                return nid
-        return -1
+
+        if sampler:
+            return sampler
+
+        raise ValueError("Could not find a sampler node in the trace tree.")
 
     @classmethod
     def filter_inputs_by_trace_tree(cls, inputs, trace_tree):
-        filtered_inputs = {}
-        for meta, inputs_list in inputs.items():
-            for node_id, input_value in inputs_list:
+        filtered_inputs = defaultdict(list)
+        for meta, input_list in inputs.items():
+            for node_id, input_value in input_list:
                 trace = trace_tree.get(node_id)
-                if trace is not None:
-                    distance = trace[0]
-                    if meta not in filtered_inputs:
-                        filtered_inputs[meta] = []
-                    filtered_inputs[meta].append((node_id, input_value, distance))
+                if trace:
+                    filtered_inputs[meta].append((node_id, input_value, trace[0]))
 
-        # sort by distance
-        for k, v in filtered_inputs.items():
-            filtered_inputs[k] = sorted(v, key=lambda x: x[2])
+        for key in filtered_inputs:
+            filtered_inputs[key].sort(key=lambda x: x[2])  # Sort by distance
+
         return filtered_inputs
