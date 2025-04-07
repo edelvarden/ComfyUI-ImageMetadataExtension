@@ -51,6 +51,7 @@ class Capture:
                         if selector:
                             v = selector(node_id, obj, prompt, extra_data, outputs, input_data)
                             cls._append_value(inputs, meta, node_id, v)
+                            continue
 
                         # Fetch and process value from field_name
                         field_name = field_data["field_name"]
