@@ -1,18 +1,25 @@
 import glob
-import importlib
+import importlib.util
 import os
 
 from .captures import CAPTURE_FIELD_LIST
 from .samplers import SAMPLERS
 
-# load CAPTURE_FIELD_LIST and SAMPLERS in ext folder
+# Locate the current node's directory
 dir_name = os.path.dirname(os.path.abspath(__file__))
-ext_folder = os.path.join(dir_name, "ext")
-parent_folder = os.path.basename(os.path.dirname(os.path.dirname(dir_name)))
 
-for module_path in glob.glob(os.path.join(ext_folder, "*.py")):
-    module_name = os.path.splitext(os.path.basename(module_path))[0]
-    package_name = f"custom_nodes.{parent_folder}.py.defs.ext.{module_name}"
-    module = importlib.import_module(package_name)
-    CAPTURE_FIELD_LIST.update(getattr(module, "CAPTURE_FIELD_LIST", {}))
-    SAMPLERS.update(getattr(module, "SAMPLERS", {}))
+ext_folder = os.path.join(dir_name, "ext")
+
+# load CAPTURE_FIELD_LIST and SAMPLERS in ext folder
+for path in glob.glob(os.path.join(ext_folder, "*.py")):
+    module_name = os.path.splitext(os.path.basename(path))[0]
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    mod = importlib.util.module_from_spec(spec)
+    
+    try:
+        spec.loader.exec_module(mod)
+
+        CAPTURE_FIELD_LIST.update(getattr(mod, "CAPTURE_FIELD_LIST", {}))
+        SAMPLERS.update(getattr(mod, "SAMPLERS", {}))
+    except Exception as e:
+        print(f"Error loading module {module_name}: {e}")
