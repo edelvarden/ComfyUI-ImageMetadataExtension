@@ -7,8 +7,8 @@ class Trace:
         node = prompt.get(start_node_id)
         class_type = node["class_type"] if node else None
         Q = deque([(start_node_id, 0)])
-        visited = {start_node_id}
         trace_tree = {start_node_id: (0, class_type)}
+        visited_edges = set()
 
         while Q:
             current_node_id, distance = Q.popleft()
@@ -20,13 +20,16 @@ class Trace:
             for value in input_fields.values():
                 if isinstance(value, list) and value:
                     nid = value[0]
-                    if nid not in visited:
-                        node = prompt.get(nid)
-                        if node:
-                            class_type = node["class_type"]
-                            trace_tree[nid] = (distance + 1, class_type)
-                            Q.append((nid, distance + 1))
-                            visited.add(nid)
+                    edge = (current_node_id, nid)
+                    if edge in visited_edges:
+                        continue
+                    visited_edges.add(edge)
+
+                    next_node = prompt.get(nid)
+                    if next_node:
+                        class_type = next_node["class_type"]
+                        trace_tree[nid] = (distance + 1, class_type)
+                        Q.append((nid, distance + 1))
 
         return trace_tree
 
