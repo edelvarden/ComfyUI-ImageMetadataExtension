@@ -1,4 +1,4 @@
-# ComfyUI-ImageMetadataExtension
+# ComfyUI Image Metadata Extension
 
 ![node-preview](assets/preview.PNG)
 
@@ -33,7 +33,7 @@ This is a fork of [nkchocoai/ComfyUI-SaveImageWithMetaData](https://github.com/n
 Use the [ComfyUI-Manager](https://github.com/ltdrdata/ComfyUI-Manager) to install.
 
 ```
-ComfyUI-ImageMetadataExtension
+comfyui_image_metadata_extension
 ```
 
 ### Manual Installation
@@ -42,7 +42,7 @@ ComfyUI-ImageMetadataExtension
 2. Clone this repository:
 
   ```bash
-   git clone https://github.com/edelvarden/ComfyUI-ImageMetadataExtension.git
+   git clone https://github.com/edelvarden/comfyui_image_metadata_extension.git
   ```
 
 ## Usage
@@ -77,7 +77,6 @@ Lora strings are automatically added to the prompt area, allowing the Civitai we
 | Identifier | Description                 |
 | ---------- | --------------------------- |
 | yyyy       | Year                        |
-| yy         | Short year format           |
 | MM         | Month                       |
 | dd         | Day                         |
 | hh         | Hour                        |
