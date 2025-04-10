@@ -138,7 +138,7 @@ class SaveImageWithMetaData(BaseNode):
             quality_value = self.get_quality_value(quality)
 
             if base_format == "webp":
-                img.save(os.path.join(full_output_folder, file), "WEBP", lossless=True if quality == 100 else False, quality=quality_value)
+                img.save(os.path.join(full_output_folder, file), "WEBP", lossless=(quality_value == 100), quality=quality_value)
             elif base_format == "png":
                 img.save(os.path.join(full_output_folder, file), pnginfo=metadata, compress_level=self.compress_level)
             else:

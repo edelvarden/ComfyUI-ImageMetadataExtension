@@ -1,4 +1,4 @@
-# GGUF - https://github.com/city96/ComfyUI-GGUF/
+# GGUF - https://github.com/city96/ComfyUI-GGUF
 from ..meta import MetaField
 from ..formatters import calc_model_hash, calc_lora_hash, convert_skip_clip, calc_unet_hash
 
